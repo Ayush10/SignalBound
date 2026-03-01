@@ -5,6 +5,10 @@
 #include "K2Node_SpawnActorFromClass.h"
 #include "EdGraphSchema_K2.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "Engine/Blueprint.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 #include "Json.h"
 
 UK2Node* FUtilityNodeCreator::CreatePrintNode(UEdGraph* Graph, const TSharedPtr<FJsonObject>& Params)
@@ -74,7 +78,29 @@ UK2Node* FUtilityNodeCreator::CreateCallFunctionNode(UEdGraph* Graph, const TSha
 		return nullptr;
 	}
 
-	// Find the function to call
+	double PosX, PosY;
+	FNodeCreatorUtils::ExtractNodePosition(Params, PosX, PosY);
+	CallNode->NodePosX = static_cast<int32>(PosX);
+	CallNode->NodePosY = static_cast<int32>(PosY);
+
+	// Check if this is a self-member call (local blueprint function)
+	bool bIsSelfCall = false;
+	bool bSelfCallParam = false;
+	if (Params->TryGetBoolField(TEXT("self_call"), bSelfCallParam) && bSelfCallParam)
+	{
+		bIsSelfCall = true;
+	}
+
+	if (bIsSelfCall)
+	{
+		// Self-member call: function defined on this blueprint
+		CallNode->FunctionReference.SetSelfMember(FName(*TargetFunction));
+		Graph->AddNode(CallNode, true, false);
+		FNodeCreatorUtils::InitializeK2Node(CallNode, Graph);
+		return CallNode;
+	}
+
+	// Find the function to call from external classes
 	UFunction* TargetFunc = nullptr;
 	FString ClassName;
 	if (Params->TryGetStringField(TEXT("target_class"), ClassName))
@@ -87,22 +113,43 @@ UK2Node* FUtilityNodeCreator::CreateCallFunctionNode(UEdGraph* Graph, const TSha
 	}
 	else
 	{
-		// Try common Unreal classes
-		TargetFunc = UKismetSystemLibrary::StaticClass()->FindFunctionByName(FName(*TargetFunction));
+		// Try common Unreal classes in order
+		static const TArray<UClass*> SearchClasses = {
+			UKismetSystemLibrary::StaticClass(),
+			UGameplayStatics::StaticClass(),
+			UKismetMathLibrary::StaticClass(),
+		};
+		for (UClass* SearchClass : SearchClasses)
+		{
+			TargetFunc = SearchClass->FindFunctionByName(FName(*TargetFunction));
+			if (TargetFunc)
+			{
+				break;
+			}
+		}
 	}
 
 	if (!TargetFunc)
 	{
+		// Last resort: try self-member (the function might be on this blueprint)
+		UBlueprint* OwnerBP = FBlueprintEditorUtils::FindBlueprintForGraph(Graph);
+		if (OwnerBP && OwnerBP->GeneratedClass)
+		{
+			TargetFunc = OwnerBP->GeneratedClass->FindFunctionByName(FName(*TargetFunction));
+			if (TargetFunc)
+			{
+				// Found on generated class, use self-member
+				CallNode->FunctionReference.SetSelfMember(FName(*TargetFunction));
+				Graph->AddNode(CallNode, true, false);
+				FNodeCreatorUtils::InitializeK2Node(CallNode, Graph);
+				return CallNode;
+			}
+		}
 		return nullptr;
 	}
 
 	// Set function reference BEFORE initialization
 	CallNode->SetFromFunction(TargetFunc);
-
-	double PosX, PosY;
-	FNodeCreatorUtils::ExtractNodePosition(Params, PosX, PosY);
-	CallNode->NodePosX = static_cast<int32>(PosX);
-	CallNode->NodePosY = static_cast<int32>(PosY);
 
 	Graph->AddNode(CallNode, true, false);
 	FNodeCreatorUtils::InitializeK2Node(CallNode, Graph);

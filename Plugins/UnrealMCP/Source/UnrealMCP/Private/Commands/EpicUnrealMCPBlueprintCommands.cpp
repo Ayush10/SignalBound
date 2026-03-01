@@ -17,12 +17,14 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Engine/Engine.h"
+#include "BlueprintEditorLibrary.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Engine/SimpleConstructionScript.h"
 #include "Engine/SCS_Node.h"
 #include "UObject/Field.h"
 #include "UObject/FieldPath.h"
+#include "UObject/UObjectGlobals.h"
 #include "EditorAssetLibrary.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "GameFramework/Actor.h"
@@ -31,6 +33,15 @@
 
 FEpicUnrealMCPBlueprintCommands::FEpicUnrealMCPBlueprintCommands()
 {
+}
+
+static bool IsUnsafeEditorMutationWindow()
+{
+#if WITH_EDITOR
+    return IsGarbageCollecting() || GIsSavingPackage;
+#else
+    return false;
+#endif
 }
 
 TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleCommand(const FString& CommandType, const TSharedPtr<FJsonObject>& Params)
@@ -50,6 +61,10 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleCommand(const FSt
     else if (CommandType == TEXT("compile_blueprint"))
     {
         return HandleCompileBlueprint(Params);
+    }
+    else if (CommandType == TEXT("reparent_blueprint"))
+    {
+        return HandleReparentBlueprint(Params);
     }
     else if (CommandType == TEXT("set_static_mesh_properties"))
     {
@@ -154,9 +169,16 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleCreateBlueprint(c
         else
         {
             // Try loading the class using LoadClass which is more reliable than FindObject
-            const FString ClassPath = FString::Printf(TEXT("/Script/Engine.%s"), *ClassName);
+            FString ClassPath = FString::Printf(TEXT("/Script/Engine.%s"), *ClassName);
             FoundClass = LoadClass<AActor>(nullptr, *ClassPath);
             
+            if (!FoundClass)
+            {
+                // Try SignalBound module path
+                ClassPath = FString::Printf(TEXT("/Script/SignalBound.%s"), *ClassName);
+                FoundClass = LoadClass<AActor>(nullptr, *ClassPath);
+            }
+
             if (!FoundClass)
             {
                 // Try alternate paths if not found
@@ -399,6 +421,66 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleCompileBlueprint(
     return ResultObj;
 }
 
+TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleReparentBlueprint(const TSharedPtr<FJsonObject>& Params)
+{
+    if (IsUnsafeEditorMutationWindow())
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Editor is busy saving or collecting garbage. Retry reparent command in a moment."));
+    }
+
+    FString BlueprintName;
+    if (!Params->TryGetStringField(TEXT("blueprint_name"), BlueprintName))
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'blueprint_name' parameter"));
+    }
+
+    FString NewParentClassPath;
+    if (!Params->TryGetStringField(TEXT("new_parent_class"), NewParentClassPath))
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'new_parent_class' parameter"));
+    }
+
+    UBlueprint* Blueprint = FEpicUnrealMCPCommonUtils::FindBlueprint(BlueprintName);
+    if (!Blueprint)
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Blueprint not found: %s"), *BlueprintName));
+    }
+
+    UClass* NewParentClass = nullptr;
+    if (NewParentClassPath.StartsWith(TEXT("/Script/")))
+    {
+        NewParentClass = LoadObject<UClass>(nullptr, *NewParentClassPath);
+    }
+    else
+    {
+        // Accept short class names (e.g. SBPlayerCharacter) as convenience.
+        const FString ScriptPath = FString::Printf(TEXT("/Script/SignalBound.%s"), *NewParentClassPath);
+        NewParentClass = LoadObject<UClass>(nullptr, *ScriptPath);
+        if (!NewParentClass)
+        {
+            NewParentClass = FindObject<UClass>(ANY_PACKAGE, *NewParentClassPath);
+        }
+    }
+
+    if (!NewParentClass)
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Could not load class: %s"), *NewParentClassPath));
+    }
+
+    UBlueprintEditorLibrary::ReparentBlueprint(Blueprint, NewParentClass);
+    FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+    FKismetEditorUtilities::CompileBlueprint(Blueprint);
+
+    const bool bSaved = UEditorAssetLibrary::SaveLoadedAsset(Blueprint, false);
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
+    ResultObj->SetStringField(TEXT("blueprint_name"), BlueprintName);
+    ResultObj->SetStringField(TEXT("new_parent_class"), NewParentClass->GetPathName());
+    ResultObj->SetBoolField(TEXT("compiled"), true);
+    ResultObj->SetBoolField(TEXT("saved"), bSaved);
+    return ResultObj;
+}
+
 TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleSpawnBlueprintActor(const TSharedPtr<FJsonObject>& Params)
 {
     UE_LOG(LogTemp, Warning, TEXT("HandleSpawnBlueprintActor: Starting blueprint actor spawn"));
@@ -574,6 +656,11 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleSetMeshMaterialCo
     if (!Params->TryGetStringField(TEXT("component_name"), ComponentName))
     {
         return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Missing 'component_name' parameter"));
+    }
+
+    if (IsUnsafeEditorMutationWindow())
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Editor is currently saving packages or running garbage collection. Retry command in a moment."));
     }
 
     // Find the blueprint
@@ -846,6 +933,11 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleApplyMaterialToAc
         MaterialSlot = Params->GetIntegerField(TEXT("material_slot"));
     }
 
+    if (IsUnsafeEditorMutationWindow())
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Editor is currently saving packages or running garbage collection. Retry command in a moment."));
+    }
+
     // Find the actor
     AActor* TargetActor = nullptr;
     UWorld* World = GEditor->GetEditorWorldContext().World();
@@ -931,6 +1023,11 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleApplyMaterialToBl
     if (Params->HasField(TEXT("material_slot")))
     {
         MaterialSlot = Params->GetIntegerField(TEXT("material_slot"));
+    }
+
+    if (IsUnsafeEditorMutationWindow())
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("Editor is currently saving packages or running garbage collection. Retry command in a moment."));
     }
 
     // Find the blueprint
@@ -1232,7 +1329,7 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleReadBlueprintCont
     {
         TSharedPtr<FJsonObject> EventGraphObj = MakeShared<FJsonObject>();
         
-        // Find the main event graph
+        // Find the main ubergraph
         for (UEdGraph* Graph : Blueprint->UbergraphPages)
         {
             if (Graph && Graph->GetName() == TEXT("EventGraph"))
@@ -1467,7 +1564,7 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleGetBlueprintVaria
         VarObj->SetStringField(TEXT("default_value"), Variable.DefaultValue);
         VarObj->SetStringField(TEXT("friendly_name"), Variable.FriendlyName.IsEmpty() ? Variable.VarName.ToString() : Variable.FriendlyName);
         
-        // Get tooltip from metadata (VarTooltip doesn't exist in UE 5.5)
+        // Get tooltip from metadata
         FString TooltipValue;
         if (Variable.HasMetaData(FBlueprintMetadata::MD_Tooltip))
         {

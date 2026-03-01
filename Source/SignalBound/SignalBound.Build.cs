@@ -12,6 +12,9 @@ public class SignalBound : ModuleRules
 			"CoreUObject",
 			"Engine",
 			"InputCore",
+			"AIModule",
+			"GameplayTasks",
+			"NavigationSystem",
 			"UMG",
 			"Slate",
 			"SlateCore"

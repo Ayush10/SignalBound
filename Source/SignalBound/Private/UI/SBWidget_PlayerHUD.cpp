@@ -68,3 +68,11 @@ void USBWidget_PlayerHUD::SetSkillReady(bool bReady)
 {
 	TargetCooldown = bReady ? 0.0f : 1.0f;
 }
+
+void USBWidget_PlayerHUD::UpdateContractText(const FString& InText)
+{
+	if (ContractText)
+	{
+		ContractText->SetText(FText::FromString(InText));
+	}
+}

@@ -7,6 +7,7 @@ import argparse
 import math
 import random
 import sys
+import time
 from typing import Any, Dict, List, Tuple
 
 from mcp_path import resolve_mcp_py_dir
@@ -45,7 +46,11 @@ skipped_existing = 0
 overwrite_existing = False
 
 
+MCP_THROTTLE = 0.10  # seconds between MCP commands to avoid overwhelming editor
+
+
 def send(command: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    time.sleep(MCP_THROTTLE)
     resp = unreal.send_command(command, params)
     return resp or {"status": "error", "error": "No response"}
 

@@ -27,6 +27,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void SetSkillReady(bool bReady);
 
+	UFUNCTION(BlueprintCallable, Category = "HUD")
+	void UpdateContractText(const FString& InText);
+
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;

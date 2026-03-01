@@ -43,3 +43,9 @@ Fix:
   - `docs/WINDOWS_HANDOFF_HUB_ADDITIVE_2026-03-01.md`
 - Cross-agent cadence/policy file:
   - `docs/CROSS_AGENT_SYNC_POLICY.md`
+
+## Parallel Designer Update (Content Pack & API Keys)
+- The user has provided ElevenLabs and Mistral AI API keys for audio and generative system integration. They have been safely stored in a local `.env` file (`ELEVENLABS_API_KEY`, `MISTRAL_API_KEY`) at the root of the project.
+- `.env` was added to `.gitignore` to prevent secret leakage.
+- The `SignalBound_ContentPack_v1` JSON (contracts, rules, boss modifiers, voice/UI copy) is complete.
+- **CRITICAL**: The Unreal Editor appears to have crashed or stopped the MCP Server. Additionally, manual reparenting of `BP_PlayerCharacter`, `BP_ContractManager`, etc., to their `SB*` C++ counterparts is required before testing gameplay systems.

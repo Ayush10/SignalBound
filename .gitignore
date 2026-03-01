@@ -29,4 +29,5 @@ venv/
 
 # Local MCP client config
 .claude/
+.env
 
