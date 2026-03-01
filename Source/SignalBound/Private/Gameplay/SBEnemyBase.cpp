@@ -1,8 +1,10 @@
 #include "Gameplay/SBEnemyBase.h"
 
 #include "AIController.h"
+#include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Gameplay/SBPlayerCharacter.h"
+#include "Gameplay/SBContractManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Animation/AnimInstance.h"
 
@@ -308,6 +310,7 @@ void ASBEnemyBase::Die()
     }
 
     OnEnemyDied.Broadcast(this);
+    NotifyContractManagerOfKill();
 }
 
 void ASBEnemyBase::PerformAttack()
@@ -375,4 +378,23 @@ void ASBEnemyBase::SpawnEnemySFX(const FVector& Location) const
     }
 
     UGameplayStatics::PlaySoundAtLocation(this, AttackSFX, Location);
+}
+
+void ASBEnemyBase::NotifyContractManagerOfKill() const
+{
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+
+    for (TActorIterator<ASBContractManager> It(World); It; ++It)
+    {
+        ASBContractManager* ContractManager = *It;
+        if (ContractManager)
+        {
+            ContractManager->RecordKill();
+        }
+        return;
+    }
 }

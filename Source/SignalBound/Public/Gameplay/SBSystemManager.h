@@ -19,6 +19,15 @@ public:
     FSBSystemDirective RequestDirective(const FString& ContextTag);
 
     UFUNCTION(BlueprintCallable, Category = "System")
+    void SetDirective(const FSBSystemDirective& Directive);
+
+    UFUNCTION(BlueprintCallable, Category = "System")
+    void LoadCachedDirectives(const FString& JsonContent);
+
+    UFUNCTION(BlueprintCallable, Category = "System")
+    void AddCachedDirective(const FSBSystemDirective& Directive);
+
+    UFUNCTION(BlueprintPure, Category = "System")
     FSBSystemDirective GetScriptedDirective(const FString& ContextTag) const;
 
     UFUNCTION(BlueprintCallable, Category = "System")

@@ -1,9 +1,13 @@
 #include "Gameplay/SBPlayerCharacter.h"
 
 #include "Components/InputComponent.h"
+#include "EngineUtils.h"
+#include "DrawDebugHelpers.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerInput.h"
+#include "Gameplay/SBContractManager.h"
+#include "Gameplay/SBEnemyBase.h"
 #include "TimerManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Animation/AnimInstance.h"
@@ -42,9 +46,7 @@ void ASBPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
     PlayerInputComponent->BindAction("Jump", IE_Released, this, &ASBPlayerCharacter::StopJumping);
 
     PlayerInputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this, &ASBPlayerCharacter::HandleLightAttackInput);
-    PlayerInputComponent->BindKey(EKeys::LeftMouseButton, IE_Released, this, &ASBPlayerCharacter::StopBlockInput);
     PlayerInputComponent->BindKey(EKeys::RightMouseButton, IE_Pressed, this, &ASBPlayerCharacter::TryHeavyAttackInput);
-    PlayerInputComponent->BindKey(EKeys::RightMouseButton, IE_Released, this, &ASBPlayerCharacter::StopBlockInput);
     PlayerInputComponent->BindKey(EKeys::LeftShift, IE_Pressed, this, &ASBPlayerCharacter::StartBlockInput);
     PlayerInputComponent->BindKey(EKeys::LeftShift, IE_Released, this, &ASBPlayerCharacter::StopBlockInput);
     PlayerInputComponent->BindKey(EKeys::SpaceBar, IE_Pressed, this, &ASBPlayerCharacter::TryDodgeInput);
@@ -85,6 +87,7 @@ void ASBPlayerCharacter::Tick(float DeltaSeconds)
     UpdateStaminaRegen(DeltaSeconds);
     UpdateSwordSkillCooldown(DeltaSeconds);
     UpdateHUDValues();
+    NotifyContractManagerOfLowHealth();
 }
 
 void ASBPlayerCharacter::SetMoveForwardInput(float Value)
@@ -241,6 +244,115 @@ void ASBPlayerCharacter::LookUpAtRate(float Rate)
     AddControllerPitchInput(Rate * LookUpRate);
 }
 
+void ASBPlayerCharacter::ApplyAttackDamage(float DamageAmount, float AttackRange, float AttackRadius)
+{
+    if (DamageAmount <= 0.0f || !GetWorld())
+    {
+        return;
+    }
+
+    const FVector Origin = GetActorLocation() + FVector(0.0f, 0.0f, 60.0f);
+    const FVector Forward = GetActorForwardVector().GetSafeNormal();
+    const FVector End = Origin + (Forward * AttackRange);
+    const FCollisionObjectQueryParams ObjParams(ECC_Pawn);
+    FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(CombatTrace), false, this);
+    QueryParams.bReturnPhysicalMaterial = false;
+    QueryParams.bTraceComplex = false;
+
+    TArray<FHitResult> HitResults;
+    const FCollisionShape Shape = FCollisionShape::MakeSphere(AttackRadius);
+
+    const bool bHit = GetWorld()->SweepMultiByObjectType(
+        HitResults,
+        Origin,
+        End,
+        FQuat::Identity,
+        ObjParams,
+        Shape,
+        QueryParams);
+
+    if (bDebugCombatTrace)
+    {
+        const FColor TraceColor = bHit ? FColor::Red : FColor::Green;
+        DrawDebugCapsule(
+            GetWorld(),
+            Origin + (Forward * (AttackRange * 0.5f)),
+            AttackRange * 0.5f,
+            AttackRadius,
+            Forward.ToOrientationQuat(),
+            TraceColor,
+            false,
+            0.2f,
+            0,
+            2.0f);
+    }
+
+    if (!bHit)
+    {
+        return;
+    }
+
+    for (const FHitResult& Hit : HitResults)
+    {
+        ASBEnemyBase* Enemy = Cast<ASBEnemyBase>(Hit.GetActor());
+        if (!Enemy || Enemy->bIsDead)
+        {
+            continue;
+        }
+
+        Enemy->ReceiveDamage(DamageAmount);
+
+        SpawnCombatFX(CombatHitVFX, Hit.ImpactPoint);
+        SpawnCombatSFX(Hit.ImpactPoint);
+        BroadcastNotify(TEXT("WeaponImpact"));
+        break;
+    }
+}
+
+void ASBPlayerCharacter::ApplySwordSkillDamage()
+{
+    ApplyAttackDamage(HeavyAttackDamage * 1.5f, MeleeAttackRange + 40.0f, MeleeAttackRadius + 25.0f);
+}
+
+void ASBPlayerCharacter::NotifyContractManagerOfHit(bool bSuccessfulParry)
+{
+    if (ASBContractManager* ContractManager = GetContractManager())
+    {
+        if (bSuccessfulParry)
+        {
+            ContractManager->RecordParry();
+        }
+        else
+        {
+            ContractManager->RecordHitTaken();
+        }
+    }
+}
+
+void ASBPlayerCharacter::NotifyContractManagerOfLowHealth()
+{
+    if (ASBContractManager* ContractManager = GetContractManager())
+    {
+        const float LowHealthThreshold = 0.3f * MaxHealth;
+        ContractManager->SetLowHealthState(CurrentHealth <= LowHealthThreshold);
+    }
+}
+
+ASBContractManager* ASBPlayerCharacter::GetContractManager() const
+{
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return nullptr;
+    }
+
+    for (TActorIterator<ASBContractManager> It(World); It; ++It)
+    {
+        return *It;
+    }
+    return nullptr;
+}
+
 void ASBPlayerCharacter::TakeDamageCustom(float DamageAmount)
 {
     if (bIsDead || bIsInvincible || DamageAmount <= 0.0f)
@@ -254,6 +366,7 @@ void ASBPlayerCharacter::TakeDamageCustom(float DamageAmount)
         SpawnCombatFX(ParryVFX, GetActorLocation());
         SpawnCombatSFX(GetActorLocation());
         BroadcastNotify(TEXT("ParrySuccess"));
+        NotifyContractManagerOfHit(true);
         return;
     }
 
@@ -277,6 +390,7 @@ void ASBPlayerCharacter::TakeDamageCustom(float DamageAmount)
         SpawnCombatFX(CombatHitVFX, GetActorLocation() + FVector(0.0f, 0.0f, 60.0f));
         SpawnCombatSFX(GetActorLocation());
         BroadcastNotify(TEXT("TakeDamage"));
+        NotifyContractManagerOfHit(false);
     }
 }
 
@@ -297,6 +411,7 @@ bool ASBPlayerCharacter::TryLightAttack()
     bCanCombo = true;
     ComboIndex = (ComboIndex + 1) % FMath::Max(1, MaxComboCount);
     PlayMontageIfSet(LightAttackMontage);
+    ApplyAttackDamage(LightAttackDamage, MeleeAttackRange, MeleeAttackRadius);
     SpawnCombatFX(CombatHitVFX, GetActorLocation() + FVector(50.0f, 0.0f, 40.0f));
     SpawnCombatSFX(GetActorLocation());
     BroadcastNotify(TEXT("LightAttack"));
@@ -348,6 +463,7 @@ bool ASBPlayerCharacter::TryHeavyAttack()
     bCanCombo = false;
     ComboIndex = 0;
     PlayMontageIfSet(HeavyAttackMontage);
+    ApplyAttackDamage(HeavyAttackDamage, MeleeAttackRange + HeavyAttackRangeBonus, MeleeAttackRadius + 15.0f);
     SpawnCombatFX(CombatHitVFX, GetActorLocation() + FVector(50.0f, 0.0f, 40.0f));
     SpawnCombatSFX(GetActorLocation());
     BroadcastNotify(TEXT("HeavyAttack"));
@@ -418,6 +534,7 @@ bool ASBPlayerCharacter::TrySwordSkill()
     bSwordSkillReady = false;
     SwordSkillCooldownRemaining = FMath::Max(0.1f, SwordSkillCooldown);
     PlayMontageIfSet(SkillMontage);
+    ApplySwordSkillDamage();
     BroadcastNotify(TEXT("SwordSkill"));
     return true;
 }

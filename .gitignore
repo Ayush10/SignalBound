@@ -31,3 +31,9 @@ venv/
 .claude/
 .env
 
+# Temp MCP debug artifacts
+params*.json
+temp_*.json
+temp_*.py
+check_reparent.json
+

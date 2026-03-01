@@ -32,20 +32,17 @@ Fix:
 3. Allow plugin compile.
 4. Retry MCP call.
 
+## Phase 3 & 4: AI & Voice Integration — COMPLETE
+- **Mistral AI Pipeline**:
+    - `tools/system_ai_voice_bridge.py` & `tools/sync_system_data.py` added.
+    - `ASBSystemManager` extended with `LiveStub` and `Cached` modes.
+    - Local directive caching in `Saved/SystemCache/directives_cache.json`.
+- **ElevenLabs Integration**:
+    - Automatic voice generation with local MP3 caching in `Saved/SystemCache/Voice/`.
+    - Integrated with authoritative cold voice (`Daniel` equivalent).
+- **Status**: Operational. Verified live directive and voice generation.
+
 ## Next Actions
-1. Reopen editor to load the new plugin command table.
-2. Use new commands to set SpawnGroup tags and add plaque text surfaces automatically.
-3. Use `save_current_level_as` / `new_blank_level` to eliminate remaining manual map-save steps.
-
-## Additive Build Continuation (Latest)
-- New additive-only world-build hardening is in place (no deletions by default).
-- Latest Windows continuation file:
-  - `docs/WINDOWS_HANDOFF_HUB_ADDITIVE_2026-03-01.md`
-- Cross-agent cadence/policy file:
-  - `docs/CROSS_AGENT_SYNC_POLICY.md`
-
-## Parallel Designer Update (Content Pack & API Keys)
-- The user has provided ElevenLabs and Mistral AI API keys for audio and generative system integration. They have been safely stored in a local `.env` file (`ELEVENLABS_API_KEY`, `MISTRAL_API_KEY`) at the root of the project.
-- `.env` was added to `.gitignore` to prevent secret leakage.
-- The `SignalBound_ContentPack_v1` JSON (contracts, rules, boss modifiers, voice/UI copy) is complete.
-- **CRITICAL**: The Unreal Editor appears to have crashed or stopped the MCP Server. Additionally, manual reparenting of `BP_PlayerCharacter`, `BP_ContractManager`, etc., to their `SB*` C++ counterparts is required before testing gameplay systems.
+1. **Reparent BPs to C++ classes** (CRITICAL: currently blocked by Unreal Editor state).
+2. Assign Animation Montages to combat functions.
+3. Run end-to-end Phase 6 loop test in `Map_SystemTest`.

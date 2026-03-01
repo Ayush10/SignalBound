@@ -9,6 +9,7 @@ class ASBEnemyBase;
 class UAnimMontage;
 class UParticleSystem;
 class USoundBase;
+class ASBContractManager;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSBEnemyDiedSignature, ASBEnemyBase*, Enemy);
 
@@ -143,6 +144,7 @@ private:
     void PlayMontageIfSet(UAnimMontage* MontageToPlay) const;
     void SpawnEnemyFX(UParticleSystem* FX, const FVector& Location) const;
     void SpawnEnemySFX(const FVector& Location) const;
+    void NotifyContractManagerOfKill() const;
     float StateElapsed = 0.0f;
     float StateDuration = 0.0f;
     bool bAttackExecuted = false;

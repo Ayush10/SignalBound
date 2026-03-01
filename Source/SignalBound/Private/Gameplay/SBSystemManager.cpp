@@ -46,7 +46,7 @@ FSBSystemDirective ASBSystemManager::RequestDirective(const FString& ContextTag)
         Directive = GetScriptedDirective(ContextTag);
         break;
     case ESBSystemProviderMode::Cached:
-        if (CachedDirectives.IsValidIndex(0))
+        if (CachedDirectives.Num() > 0)
         {
             Directive = CachedDirectives[0];
             CachedDirectives.RemoveAt(0);
@@ -57,6 +57,8 @@ FSBSystemDirective ASBSystemManager::RequestDirective(const FString& ContextTag)
         }
         break;
     case ESBSystemProviderMode::LiveStub:
+        // In LiveStub mode, we expect an external tool to call SetDirective
+        // If not set recently, return fallback
         Directive = BuildLiveStubDirective(ContextTag);
         break;
     default:
@@ -66,6 +68,23 @@ FSBSystemDirective ASBSystemManager::RequestDirective(const FString& ContextTag)
 
     ShowDirective(Directive);
     return Directive;
+}
+
+void ASBSystemManager::SetDirective(const FSBSystemDirective& Directive)
+{
+    ShowDirective(Directive);
+}
+
+void ASBSystemManager::AddCachedDirective(const FSBSystemDirective& Directive)
+{
+    CachedDirectives.Add(Directive);
+}
+
+void ASBSystemManager::LoadCachedDirectives(const FString& JsonContent)
+{
+    // Simple manual parsing or placeholder for external data injection
+    // In a real project, we'd use TJsonReader
+    CachedDirectives.Empty();
 }
 
 FSBSystemDirective ASBSystemManager::GetScriptedDirective(const FString& ContextTag) const

@@ -7,6 +7,8 @@
 class UAnimMontage;
 class UParticleSystem;
 class USoundBase;
+class ASBContractManager;
+class ASBEnemyBase;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSBStatChangedSignature, float, NewNormalizedValue);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSBPlayerSimpleSignature);
@@ -108,6 +110,15 @@ public:
     float HeavyAttackDamage = 35.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+    float MeleeAttackRange = 150.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+    float MeleeAttackRadius = 85.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+    float HeavyAttackRangeBonus = 25.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
     int32 ComboIndex = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
@@ -185,6 +196,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|SFX")
     USoundBase* CombatImpactSFX = nullptr;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Debug")
+    bool bDebugCombatTrace = false;
+
 private:
     void SetMoveForwardInput(float Value);
     void SetMoveRightInput(float Value);
@@ -205,6 +219,12 @@ private:
     void TryDodgeInput();
     void TrySkillInput();
     void StartBlockInput();
+
+    void ApplyAttackDamage(float DamageAmount, float AttackRange, float AttackRadius);
+    void ApplySwordSkillDamage();
+    void NotifyContractManagerOfHit(bool bSuccessfulParry = false);
+    void NotifyContractManagerOfLowHealth();
+    ASBContractManager* GetContractManager() const;
 
     void PlayMontageIfSet(UAnimMontage* MontageToPlay);
     void SpawnCombatFX(UParticleSystem* FX, const FVector& Location) const;
