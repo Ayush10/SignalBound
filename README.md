@@ -1,6 +1,36 @@
 # SignalBound
 
-A third-person melee action game built in Unreal Engine 5.7. Players navigate procedurally-guided dungeon floors, complete contracts for an omniscient AI overseer called the System, and ascend through a citadel hub city. Combat is stamina-based with light/heavy attacks, dodge rolls, parry windows, and cooldown-gated sword skills.
+SignalBound is a third person melee action RPG prototype built for the Mistral Worldwide Hackathon. It is an original IP project inspired by the feeling of a System governed dungeon world, where the game itself watches how you play and responds in ways that feel like player choice, not invisible scaling.
+
+The core mechanic is **System Contracts**. Instead of silently adjusting challenge, an in world System offers short, measurable contracts that the player can accept or decline. Accepting a contract increases pressure through clear constraints and goals, but rewards the player with upgrades, progression, or key resources. This disguises adaptive challenge as player agency and creates dramatic moments that are easy to understand in a live demo.
+
+The System operates as a reliable gameplay layer, not a chat interface:
+- **Unreal Engine** enforces the rules and verifies success or failure
+- **Mistral** selects and frames the next contract or rule as a structured directive
+- **ElevenLabs** voices the System so it feels authoritative and alive
+
+### The MVP Loop
+
+1. Spawn in the hub city **Luminarch Citadel City**
+2. Approach the Gate and descend to **Floor 1: Ironcatacomb**
+3. Complete combat rooms and an objective encounter
+4. Unlock the boss gate, defeat the boss
+5. Trigger the Ascension Gate and return to the hub or proceed to the next floor
+
+### World Design
+
+The world is designed in layers for hackathon scope. The hub city is a walkable hero district with cinematic vistas and a System built metropolis skyline. Floor 1 is a compact, readable dungeon floor built for melee combat clarity, with clear telegraphs, strong silhouettes, and a single boss with modifier sets that adapt to player behavior.
+
+### Demo Safety
+
+A strict demo safety philosophy is built into the architecture. The System runs in provider modes:
+- **Scripted** mode for guaranteed offline demos
+- **Cached** mode for record and replay
+- **Live** mode for Mistral directives with schema validation and timeouts
+
+If network conditions fail, the game remains fully playable and the demo remains smooth.
+
+SignalBound focuses on showing AI as a gameplay director rather than a novelty. The goal is a fun, cohesive, playable vertical slice that judges can understand in under a minute, with a System that feels like a real part of the world.
 
 ## Repository Structure
 
