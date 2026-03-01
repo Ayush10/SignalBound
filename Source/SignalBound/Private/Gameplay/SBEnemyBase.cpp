@@ -4,6 +4,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Gameplay/SBPlayerCharacter.h"
 #include "Kismet/GameplayStatics.h"
+#include "Animation/AnimInstance.h"
 
 ASBEnemyBase::ASBEnemyBase()
 {
@@ -34,6 +35,8 @@ void ASBEnemyBase::ReceiveDamage(float DamageAmount)
 
     CurrentHealth = FMath::Clamp(CurrentHealth - DamageAmount, 0.0f, MaxHealth);
     AccumulatedStagger += DamageAmount;
+    SpawnEnemyFX(HitFX, GetActorLocation() + FVector(0.0f, 0.0f, 60.0f));
+    SpawnEnemySFX(GetActorLocation());
 
     if (CurrentHealth <= 0.0f)
     {
@@ -61,27 +64,43 @@ void ASBEnemyBase::EnterState(int32 NewStateIndex)
     {
     case ESBEnemyState::Idle:
         StateDuration = 0.0f;
+        ReceiveCombatNotify(TEXT("Idle"));
         break;
     case ESBEnemyState::Chase:
         StateDuration = 0.0f;
+        ReceiveCombatNotify(TEXT("Chase"));
         break;
     case ESBEnemyState::Windup:
         StateDuration = FMath::Max(0.05f, WindupDuration);
+        PlayMontageIfSet(WindupMontage);
+        ReceiveCombatNotify(TEXT("Windup"));
         break;
     case ESBEnemyState::Attack:
         StateDuration = 0.2f;
+        PlayMontageIfSet(AttackMontage);
+        SpawnEnemyFX(HitFX, GetActorLocation() + FVector(0.0f, 0.0f, 60.0f));
+        SpawnEnemySFX(GetActorLocation());
+        ReceiveCombatNotify(TEXT("Attack"));
         break;
     case ESBEnemyState::Recover:
         StateDuration = FMath::Max(0.05f, RecoveryDuration);
+        ReceiveCombatNotify(TEXT("Recover"));
         break;
     case ESBEnemyState::Stunned:
         StateDuration = 0.9f;
+        PlayMontageIfSet(StunMontage);
+        ReceiveCombatNotify(TEXT("Stunned"));
         break;
     case ESBEnemyState::HitReact:
         StateDuration = 0.35f;
+        PlayMontageIfSet(HitReactMontage);
+        ReceiveCombatNotify(TEXT("HitReact"));
         break;
     case ESBEnemyState::Dead:
         StateDuration = 0.0f;
+        PlayMontageIfSet(DeathMontage);
+        SpawnEnemyFX(DeathFX, GetActorLocation());
+        ReceiveCombatNotify(TEXT("Death"));
         break;
     default:
         StateDuration = 0.0f;
@@ -320,4 +339,40 @@ AActor* ASBEnemyBase::AcquireTarget() const
 
     const float Distance = FVector::Dist(PlayerPawn->GetActorLocation(), GetActorLocation());
     return Distance <= DetectionRange ? PlayerPawn : nullptr;
+}
+
+void ASBEnemyBase::PlayMontageIfSet(UAnimMontage* MontageToPlay) const
+{
+    if (!MontageToPlay)
+    {
+        return;
+    }
+
+    if (USkeletalMeshComponent* MeshComp = GetMesh())
+    {
+        if (UAnimInstance* AnimInstance = MeshComp->GetAnimInstance())
+        {
+            AnimInstance->Montage_Play(MontageToPlay, 1.0f);
+        }
+    }
+}
+
+void ASBEnemyBase::SpawnEnemyFX(UParticleSystem* FX, const FVector& Location) const
+{
+    if (!FX || !GetWorld())
+    {
+        return;
+    }
+
+    UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), FX, Location, FRotator::ZeroRotator, true);
+}
+
+void ASBEnemyBase::SpawnEnemySFX(const FVector& Location) const
+{
+    if (!AttackSFX || !GetWorld())
+    {
+        return;
+    }
+
+    UGameplayStatics::PlaySoundAtLocation(this, AttackSFX, Location);
 }

@@ -458,7 +458,7 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPBlueprintCommands::HandleReparentBlueprint
         NewParentClass = LoadObject<UClass>(nullptr, *ScriptPath);
         if (!NewParentClass)
         {
-            NewParentClass = FindObject<UClass>(ANY_PACKAGE, *NewParentClassPath);
+        NewParentClass = FindObject<UClass>(nullptr, *NewParentClassPath);
         }
     }
 

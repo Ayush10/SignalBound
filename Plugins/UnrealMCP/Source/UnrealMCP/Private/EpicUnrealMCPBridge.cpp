@@ -242,6 +242,7 @@ FString UEpicUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const T
             else if (CommandType == TEXT("create_blueprint") ||
                      CommandType == TEXT("add_component_to_blueprint") ||
                      CommandType == TEXT("set_physics_properties") ||
+                     CommandType == TEXT("reparent_blueprint") ||
                      CommandType == TEXT("compile_blueprint") ||
                      CommandType == TEXT("set_static_mesh_properties") ||
                      CommandType == TEXT("set_mesh_material_color") ||

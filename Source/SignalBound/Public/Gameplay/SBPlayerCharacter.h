@@ -4,6 +4,10 @@
 #include "GameFramework/Character.h"
 #include "SBPlayerCharacter.generated.h"
 
+class UAnimMontage;
+class UParticleSystem;
+class USoundBase;
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSBStatChangedSignature, float, NewNormalizedValue);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSBPlayerSimpleSignature);
 
@@ -17,6 +21,7 @@ public:
 
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
+    virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void TakeDamageCustom(float DamageAmount);
@@ -56,6 +61,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void ResetAttackState();
+
+    UFUNCTION(BlueprintImplementableEvent, Category = "Combat")
+    void ReceiveCombatNotify(FName NotifyName);
 
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FSBStatChangedSignature OnHealthChanged;
@@ -141,7 +149,68 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
     bool bIsInvincible = false;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+    float TurnRate = 1.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+    float LookUpRate = 1.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+    float MoveSpeedMultiplier = 1.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Animation")
+    UAnimMontage* LightAttackMontage = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Animation")
+    UAnimMontage* HeavyAttackMontage = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Animation")
+    UAnimMontage* DodgeMontage = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Animation")
+    UAnimMontage* BlockMontage = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Animation")
+    UAnimMontage* SkillMontage = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Animation")
+    UAnimMontage* DeathMontage = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|VFX")
+    UParticleSystem* CombatHitVFX = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|VFX")
+    UParticleSystem* ParryVFX = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|SFX")
+    USoundBase* CombatImpactSFX = nullptr;
+
 private:
+    void SetMoveForwardInput(float Value);
+    void SetMoveRightInput(float Value);
+    void ApplyMovementInput();
+    void MoveForwardPressed();
+    void MoveForwardReleased();
+    void MoveBackwardPressed();
+    void MoveBackwardReleased();
+    void MoveRightPressed();
+    void MoveRightReleased();
+    void MoveLeftPressed();
+    void MoveLeftReleased();
+    void HandleLightAttackInput();
+    void TurnAtRate(float Rate);
+    void LookUpAtRate(float Rate);
+    void TryHeavyAttackInput();
+    void StopBlockInput();
+    void TryDodgeInput();
+    void TrySkillInput();
+    void StartBlockInput();
+
+    void PlayMontageIfSet(UAnimMontage* MontageToPlay);
+    void SpawnCombatFX(UParticleSystem* FX, const FVector& Location) const;
+    void SpawnCombatSFX(const FVector& Location) const;
+    void BroadcastNotify(FName NotifyName);
+
     bool ConsumeStamina(float Amount);
     void MarkStaminaSpent();
 
@@ -155,6 +224,8 @@ private:
     float LastHealthPct = 1.0f;
     float LastStaminaPct = 1.0f;
     float LastCooldownPct = 0.0f;
+    float MoveForwardAxis = 0.0f;
+    float MoveRightAxis = 0.0f;
 
     FTimerHandle AttackResetTimerHandle;
     FTimerHandle DodgeTimerHandle;

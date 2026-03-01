@@ -1,11 +1,54 @@
 #include "Gameplay/SBPlayerCharacter.h"
 
+#include "Components/InputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerInput.h"
 #include "TimerManager.h"
+#include "Kismet/GameplayStatics.h"
+#include "Animation/AnimInstance.h"
 
 ASBPlayerCharacter::ASBPlayerCharacter()
 {
     PrimaryActorTick.bCanEverTick = true;
+}
+
+void ASBPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+    Super::SetupPlayerInputComponent(PlayerInputComponent);
+
+    if (!PlayerInputComponent)
+    {
+        return;
+    }
+
+    // Input mapping axis bindings (if action/axis mappings exist in Project Settings).
+    PlayerInputComponent->BindAxis("MoveForward", this, &ASBPlayerCharacter::SetMoveForwardInput);
+    PlayerInputComponent->BindAxis("MoveRight", this, &ASBPlayerCharacter::SetMoveRightInput);
+    PlayerInputComponent->BindAxis("Turn", this, &ASBPlayerCharacter::TurnAtRate);
+    PlayerInputComponent->BindAxis("LookUp", this, &ASBPlayerCharacter::LookUpAtRate);
+
+    // Input action fallbacks for keyboard if no project mappings are present.
+    PlayerInputComponent->BindKey(EKeys::W, IE_Pressed, this, &ASBPlayerCharacter::MoveForwardPressed);
+    PlayerInputComponent->BindKey(EKeys::W, IE_Released, this, &ASBPlayerCharacter::MoveForwardReleased);
+    PlayerInputComponent->BindKey(EKeys::S, IE_Pressed, this, &ASBPlayerCharacter::MoveBackwardPressed);
+    PlayerInputComponent->BindKey(EKeys::S, IE_Released, this, &ASBPlayerCharacter::MoveBackwardReleased);
+    PlayerInputComponent->BindKey(EKeys::D, IE_Pressed, this, &ASBPlayerCharacter::MoveRightPressed);
+    PlayerInputComponent->BindKey(EKeys::D, IE_Released, this, &ASBPlayerCharacter::MoveRightReleased);
+    PlayerInputComponent->BindKey(EKeys::A, IE_Pressed, this, &ASBPlayerCharacter::MoveLeftPressed);
+    PlayerInputComponent->BindKey(EKeys::A, IE_Released, this, &ASBPlayerCharacter::MoveLeftReleased);
+
+    PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ASBPlayerCharacter::Jump);
+    PlayerInputComponent->BindAction("Jump", IE_Released, this, &ASBPlayerCharacter::StopJumping);
+
+    PlayerInputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this, &ASBPlayerCharacter::HandleLightAttackInput);
+    PlayerInputComponent->BindKey(EKeys::LeftMouseButton, IE_Released, this, &ASBPlayerCharacter::StopBlockInput);
+    PlayerInputComponent->BindKey(EKeys::RightMouseButton, IE_Pressed, this, &ASBPlayerCharacter::TryHeavyAttackInput);
+    PlayerInputComponent->BindKey(EKeys::RightMouseButton, IE_Released, this, &ASBPlayerCharacter::StopBlockInput);
+    PlayerInputComponent->BindKey(EKeys::LeftShift, IE_Pressed, this, &ASBPlayerCharacter::StartBlockInput);
+    PlayerInputComponent->BindKey(EKeys::LeftShift, IE_Released, this, &ASBPlayerCharacter::StopBlockInput);
+    PlayerInputComponent->BindKey(EKeys::SpaceBar, IE_Pressed, this, &ASBPlayerCharacter::TryDodgeInput);
+    PlayerInputComponent->BindKey(EKeys::Q, IE_Pressed, this, &ASBPlayerCharacter::TrySkillInput);
 }
 
 void ASBPlayerCharacter::BeginPlay()
@@ -21,7 +64,9 @@ void ASBPlayerCharacter::BeginPlay()
 
     LastHealthPct = CurrentHealth / MaxHealth;
     LastStaminaPct = CurrentStamina / MaxStamina;
-    LastCooldownPct = SwordSkillCooldown > 0.0f ? (SwordSkillCooldownRemaining / SwordSkillCooldown) : 0.0f;
+    LastCooldownPct = SwordSkillCooldown > 0.0f
+        ? (SwordSkillCooldownRemaining / SwordSkillCooldown)
+        : 0.0f;
 
     UpdateHUDValues();
 }
@@ -36,9 +81,164 @@ void ASBPlayerCharacter::Tick(float DeltaSeconds)
     }
 
     TimeSinceLastStaminaSpend += DeltaSeconds;
+    ApplyMovementInput();
     UpdateStaminaRegen(DeltaSeconds);
     UpdateSwordSkillCooldown(DeltaSeconds);
     UpdateHUDValues();
+}
+
+void ASBPlayerCharacter::SetMoveForwardInput(float Value)
+{
+    if (bIsDead)
+    {
+        return;
+    }
+    MoveForwardAxis = FMath::Clamp(Value, -1.0f, 1.0f);
+}
+
+void ASBPlayerCharacter::SetMoveRightInput(float Value)
+{
+    if (bIsDead)
+    {
+        return;
+    }
+    MoveRightAxis = FMath::Clamp(Value, -1.0f, 1.0f);
+}
+
+void ASBPlayerCharacter::ApplyMovementInput()
+{
+    if (bIsDead || !Controller)
+    {
+        return;
+    }
+
+    const bool bHasInput = !FMath::IsNearlyZero(MoveForwardAxis) || !FMath::IsNearlyZero(MoveRightAxis);
+    if (!bHasInput)
+    {
+        return;
+    }
+
+    const FRotator Rotation = Controller->GetControlRotation();
+    const FRotator YawRotation(0.0f, Rotation.Yaw, 0.0f);
+
+    if (!FMath::IsNearlyZero(MoveForwardAxis))
+    {
+        const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+        AddMovementInput(Direction, MoveForwardAxis * MoveSpeedMultiplier);
+    }
+
+    if (!FMath::IsNearlyZero(MoveRightAxis))
+    {
+        const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+        AddMovementInput(Direction, MoveRightAxis * MoveSpeedMultiplier);
+    }
+}
+
+void ASBPlayerCharacter::MoveForwardPressed()
+{
+    if (bIsDead)
+    {
+        return;
+    }
+    MoveForwardAxis = 1.0f;
+}
+
+void ASBPlayerCharacter::MoveForwardReleased()
+{
+    if (bIsDead)
+    {
+        return;
+    }
+    if (MoveForwardAxis > 0.0f)
+    {
+        MoveForwardAxis = 0.0f;
+    }
+}
+
+void ASBPlayerCharacter::MoveBackwardPressed()
+{
+    if (bIsDead)
+    {
+        return;
+    }
+    MoveForwardAxis = -1.0f;
+}
+
+void ASBPlayerCharacter::MoveBackwardReleased()
+{
+    if (bIsDead)
+    {
+        return;
+    }
+    if (MoveForwardAxis < 0.0f)
+    {
+        MoveForwardAxis = 0.0f;
+    }
+}
+
+void ASBPlayerCharacter::MoveRightPressed()
+{
+    if (bIsDead)
+    {
+        return;
+    }
+    MoveRightAxis = 1.0f;
+}
+
+void ASBPlayerCharacter::MoveRightReleased()
+{
+    if (bIsDead)
+    {
+        return;
+    }
+    if (MoveRightAxis > 0.0f)
+    {
+        MoveRightAxis = 0.0f;
+    }
+}
+
+void ASBPlayerCharacter::MoveLeftPressed()
+{
+    if (bIsDead)
+    {
+        return;
+    }
+    MoveRightAxis = -1.0f;
+}
+
+void ASBPlayerCharacter::MoveLeftReleased()
+{
+    if (bIsDead)
+    {
+        return;
+    }
+    if (MoveRightAxis < 0.0f)
+    {
+        MoveRightAxis = 0.0f;
+    }
+}
+
+void ASBPlayerCharacter::HandleLightAttackInput()
+{
+    TryLightAttack();
+}
+
+void ASBPlayerCharacter::TurnAtRate(float Rate)
+{
+    if (bIsDead)
+    {
+        return;
+    }
+    AddControllerYawInput(Rate * TurnRate);
+}
+
+void ASBPlayerCharacter::LookUpAtRate(float Rate)
+{
+    if (bIsDead)
+    {
+        return;
+    }
+    AddControllerPitchInput(Rate * LookUpRate);
 }
 
 void ASBPlayerCharacter::TakeDamageCustom(float DamageAmount)
@@ -51,6 +251,9 @@ void ASBPlayerCharacter::TakeDamageCustom(float DamageAmount)
     if (bParryWindowActive)
     {
         OnParrySuccess();
+        SpawnCombatFX(ParryVFX, GetActorLocation());
+        SpawnCombatSFX(GetActorLocation());
+        BroadcastNotify(TEXT("ParrySuccess"));
         return;
     }
 
@@ -58,6 +261,9 @@ void ASBPlayerCharacter::TakeDamageCustom(float DamageAmount)
     {
         const float Drain = DamageAmount * BlockDrainRate * 0.05f;
         ConsumeStamina(Drain);
+        SpawnCombatFX(CombatHitVFX, GetActorLocation() + FVector(0.0f, 0.0f, 60.0f));
+        SpawnCombatSFX(GetActorLocation());
+        BroadcastNotify(TEXT("Blocked"));
         return;
     }
 
@@ -65,6 +271,12 @@ void ASBPlayerCharacter::TakeDamageCustom(float DamageAmount)
     if (CurrentHealth <= 0.0f)
     {
         Die();
+    }
+    else
+    {
+        SpawnCombatFX(CombatHitVFX, GetActorLocation() + FVector(0.0f, 0.0f, 60.0f));
+        SpawnCombatSFX(GetActorLocation());
+        BroadcastNotify(TEXT("TakeDamage"));
     }
 }
 
@@ -84,10 +296,39 @@ bool ASBPlayerCharacter::TryLightAttack()
     bIsAttacking = true;
     bCanCombo = true;
     ComboIndex = (ComboIndex + 1) % FMath::Max(1, MaxComboCount);
+    PlayMontageIfSet(LightAttackMontage);
+    SpawnCombatFX(CombatHitVFX, GetActorLocation() + FVector(50.0f, 0.0f, 40.0f));
+    SpawnCombatSFX(GetActorLocation());
+    BroadcastNotify(TEXT("LightAttack"));
 
     GetWorldTimerManager().ClearTimer(AttackResetTimerHandle);
     GetWorldTimerManager().SetTimer(AttackResetTimerHandle, this, &ASBPlayerCharacter::ResetAttackState, ComboResetTime, false);
     return true;
+}
+
+void ASBPlayerCharacter::TryHeavyAttackInput()
+{
+    TryHeavyAttack();
+}
+
+void ASBPlayerCharacter::StartBlockInput()
+{
+    StartBlock();
+}
+
+void ASBPlayerCharacter::StopBlockInput()
+{
+    StopBlock();
+}
+
+void ASBPlayerCharacter::TryDodgeInput()
+{
+    TryDodge();
+}
+
+void ASBPlayerCharacter::TrySkillInput()
+{
+    TrySwordSkill();
 }
 
 bool ASBPlayerCharacter::TryHeavyAttack()
@@ -98,7 +339,7 @@ bool ASBPlayerCharacter::TryHeavyAttack()
     }
 
     constexpr float HeavyAttackStaminaCost = 25.0f;
-    if (!ConsumeStamina(HeavyAttackStaminaCost))
+    if (!ConsumeStamina(25.0f))
     {
         return false;
     }
@@ -106,6 +347,10 @@ bool ASBPlayerCharacter::TryHeavyAttack()
     bIsAttacking = true;
     bCanCombo = false;
     ComboIndex = 0;
+    PlayMontageIfSet(HeavyAttackMontage);
+    SpawnCombatFX(CombatHitVFX, GetActorLocation() + FVector(50.0f, 0.0f, 40.0f));
+    SpawnCombatSFX(GetActorLocation());
+    BroadcastNotify(TEXT("HeavyAttack"));
 
     GetWorldTimerManager().ClearTimer(AttackResetTimerHandle);
     GetWorldTimerManager().SetTimer(AttackResetTimerHandle, this, &ASBPlayerCharacter::ResetAttackState, 0.65f, false);
@@ -126,6 +371,8 @@ bool ASBPlayerCharacter::TryDodge()
 
     bIsDodging = true;
     bIsInvincible = true;
+    PlayMontageIfSet(DodgeMontage);
+    BroadcastNotify(TEXT("Dodge"));
 
     GetWorldTimerManager().ClearTimer(DodgeTimerHandle);
     GetWorldTimerManager().SetTimer(DodgeTimerHandle, this, &ASBPlayerCharacter::EndDodge, 0.35f, false);
@@ -141,6 +388,8 @@ void ASBPlayerCharacter::StartBlock()
 
     bIsBlocking = true;
     bParryWindowActive = true;
+    PlayMontageIfSet(BlockMontage);
+    BroadcastNotify(TEXT("BlockStart"));
     GetWorldTimerManager().ClearTimer(ParryTimerHandle);
     GetWorldTimerManager().SetTimer(ParryTimerHandle, this, &ASBPlayerCharacter::DisableParryWindow, ParryWindowDuration, false);
 }
@@ -149,6 +398,7 @@ void ASBPlayerCharacter::StopBlock()
 {
     bIsBlocking = false;
     bParryWindowActive = false;
+    BroadcastNotify(TEXT("BlockStop"));
     GetWorldTimerManager().ClearTimer(ParryTimerHandle);
 }
 
@@ -167,6 +417,8 @@ bool ASBPlayerCharacter::TrySwordSkill()
 
     bSwordSkillReady = false;
     SwordSkillCooldownRemaining = FMath::Max(0.1f, SwordSkillCooldown);
+    PlayMontageIfSet(SkillMontage);
+    BroadcastNotify(TEXT("SwordSkill"));
     return true;
 }
 
@@ -174,6 +426,10 @@ void ASBPlayerCharacter::OnParrySuccess()
 {
     bParryWindowActive = false;
     CurrentStamina = FMath::Clamp(CurrentStamina + 20.0f, 0.0f, MaxStamina);
+    PlayMontageIfSet(BlockMontage);
+    SpawnCombatFX(ParryVFX, GetActorLocation());
+    SpawnCombatSFX(GetActorLocation());
+    BroadcastNotify(TEXT("Parry"));
 }
 
 void ASBPlayerCharacter::Die()
@@ -194,6 +450,9 @@ void ASBPlayerCharacter::Die()
     {
         MoveComp->DisableMovement();
     }
+
+    PlayMontageIfSet(DeathMontage);
+    BroadcastNotify(TEXT("Death"));
 
     OnPlayerDied.Broadcast();
 }
@@ -263,6 +522,52 @@ void ASBPlayerCharacter::ResetAttackState()
     {
         ComboIndex = 0;
     }
+}
+
+void ASBPlayerCharacter::PlayMontageIfSet(UAnimMontage* MontageToPlay)
+{
+    if (!MontageToPlay)
+    {
+        return;
+    }
+
+    if (USkeletalMeshComponent* MeshComp = GetMesh())
+    {
+        if (UAnimInstance* AnimInstance = MeshComp->GetAnimInstance())
+        {
+            AnimInstance->Montage_Play(MontageToPlay, 1.0f);
+        }
+    }
+}
+
+void ASBPlayerCharacter::SpawnCombatFX(UParticleSystem* FX, const FVector& Location) const
+{
+    if (!FX || !GetWorld())
+    {
+        return;
+    }
+
+    UGameplayStatics::SpawnEmitterAtLocation(
+        GetWorld(),
+        FX,
+        Location,
+        FRotator::ZeroRotator,
+        true);
+}
+
+void ASBPlayerCharacter::SpawnCombatSFX(const FVector& Location) const
+{
+    if (!CombatImpactSFX || !GetWorld())
+    {
+        return;
+    }
+
+    UGameplayStatics::PlaySoundAtLocation(this, CombatImpactSFX, Location);
+}
+
+void ASBPlayerCharacter::BroadcastNotify(FName NotifyName)
+{
+    ReceiveCombatNotify(NotifyName);
 }
 
 bool ASBPlayerCharacter::ConsumeStamina(float Amount)

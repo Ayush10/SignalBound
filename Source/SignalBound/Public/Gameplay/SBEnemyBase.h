@@ -6,6 +6,9 @@
 #include "SBEnemyBase.generated.h"
 
 class ASBEnemyBase;
+class UAnimMontage;
+class UParticleSystem;
+class USoundBase;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSBEnemyDiedSignature, ASBEnemyBase*, Enemy);
 
@@ -104,12 +107,42 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Runtime")
     AActor* TargetActor = nullptr;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+    UAnimMontage* WindupMontage = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+    UAnimMontage* AttackMontage = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+    UAnimMontage* HitReactMontage = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+    UAnimMontage* StunMontage = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+    UAnimMontage* DeathMontage = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX")
+    UParticleSystem* HitFX = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX")
+    UParticleSystem* DeathFX = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SFX")
+    USoundBase* AttackSFX = nullptr;
+
 protected:
     UFUNCTION(BlueprintCallable, Category = "Enemy")
     virtual void PerformAttack();
 
+    UFUNCTION(BlueprintImplementableEvent, Category = "Enemy")
+    void ReceiveCombatNotify(FName NotifyName);
+
 private:
     AActor* AcquireTarget() const;
+    void PlayMontageIfSet(UAnimMontage* MontageToPlay) const;
+    void SpawnEnemyFX(UParticleSystem* FX, const FVector& Location) const;
+    void SpawnEnemySFX(const FVector& Location) const;
     float StateElapsed = 0.0f;
     float StateDuration = 0.0f;
     bool bAttackExecuted = false;
