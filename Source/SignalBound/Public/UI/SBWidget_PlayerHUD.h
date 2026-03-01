@@ -30,6 +30,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void UpdateContractText(const FString& InText);
 
+	UFUNCTION(BlueprintCallable, Category = "HUD")
+	void UpdateDirectiveText(const FString& InText);
+
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
@@ -45,6 +48,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UTextBlock* ContractText;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UTextBlock* DirectiveText;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD")
 	float InterpSpeed = 10.0f;

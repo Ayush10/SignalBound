@@ -30,6 +30,52 @@ FSBContractState ASBContractManager::OfferContract(ESBContractType Type, int32 T
     return CurrentContract;
 }
 
+TArray<FSBContractState> ASBContractManager::GetAvailableContracts() const
+{
+    TArray<FSBContractState> Contracts;
+    
+    // Contract 1: NoHeal
+    FSBContractState NoHeal;
+    NoHeal.Type = ESBContractType::NoHeal;
+    NoHeal.TimeLimitSeconds = 30.0f;
+    Contracts.Add(NoHeal);
+
+    // Contract 2: ParryChain
+    FSBContractState ParryChain;
+    ParryChain.Type = ESBContractType::ParryChain;
+    ParryChain.TargetCount = 3;
+    ParryChain.TimeLimitSeconds = 25.0f;
+    Contracts.Add(ParryChain);
+
+    // Contract 3: NoHits
+    FSBContractState NoHits;
+    NoHits.Type = ESBContractType::NoHits;
+    NoHits.TimeLimitSeconds = 20.0f;
+    Contracts.Add(NoHits);
+
+    // Contract 4: KillCount
+    FSBContractState KillCountContract;
+    KillCountContract.Type = ESBContractType::KillCount;
+    KillCountContract.TargetCount = 5;
+    KillCountContract.TimeLimitSeconds = 60.0f;
+    Contracts.Add(KillCountContract);
+
+    // Contract 5: LowHPSurvival
+    FSBContractState LowHPSurvival;
+    LowHPSurvival.Type = ESBContractType::LowHPSurvival;
+    LowHPSurvival.TimeLimitSeconds = 15.0f;
+    Contracts.Add(LowHPSurvival);
+
+    // Contract 6: FastClear
+    FSBContractState FastClear;
+    FastClear.Type = ESBContractType::FastClear;
+    FastClear.TargetCount = 3;
+    FastClear.TimeLimitSeconds = 45.0f;
+    Contracts.Add(FastClear);
+
+    return Contracts;
+}
+
 bool ASBContractManager::AcceptContract()
 {
     if (CurrentContract.Type == ESBContractType::None || CurrentContract.bActive)

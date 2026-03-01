@@ -220,6 +220,12 @@ void ASBHUDManager::HandleSystemDirectiveChanged(const FSBSystemDirective& Direc
     {
         return;
     }
+    
+    if (PlayerHUDWidget)
+    {
+        PlayerHUDWidget->UpdateDirectiveText(Directive.Text);
+    }
+    
     ShowDirective(Directive.Text, 4.0f);
 }
 
@@ -233,23 +239,26 @@ void ASBHUDManager::HandleContractChanged(const FSBContractState& ContractState)
     FString Status;
     if (ContractState.Type == ESBContractType::None)
     {
-        Status = TEXT("No contract");
+        Status = TEXT("No active contract");
     }
     else if (ContractState.bSucceeded)
     {
-        Status = TEXT("Contract complete");
+        Status = TEXT("Contract complete!");
     }
     else if (ContractState.bFailed)
     {
-        Status = TEXT("Contract failed");
+        Status = TEXT("Contract failed.");
     }
     else if (ContractState.bActive)
     {
-        Status = FString::Printf(TEXT("Contract %d/%d"), ContractState.ProgressCount, ContractState.TargetCount);
+        Status = FString::Printf(TEXT("Contract: %d/%d (%.1fs)"), 
+            ContractState.ProgressCount, 
+            ContractState.TargetCount,
+            FMath::Max(0.0f, ContractState.TimeLimitSeconds - ContractState.ElapsedSeconds));
     }
     else
     {
-        Status = TEXT("Contract offered");
+        Status = TEXT("Contract offered...");
     }
 
     PlayerHUDWidget->UpdateContractText(Status);

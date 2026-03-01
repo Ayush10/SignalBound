@@ -20,6 +20,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Contract")
     FSBContractState OfferContract(ESBContractType Type, int32 TargetCount, float TimeLimitSeconds);
 
+    UFUNCTION(BlueprintPure, Category = "Contract")
+    TArray<FSBContractState> GetAvailableContracts() const;
+
     UFUNCTION(BlueprintCallable, Category = "Contract")
     bool AcceptContract();
 

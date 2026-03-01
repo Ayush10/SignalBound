@@ -3,6 +3,37 @@
 ASBSystemManager::ASBSystemManager()
 {
     PrimaryActorTick.bCanEverTick = false;
+
+    // Initialize Scripted Directives
+    FSBSystemDirective D1;
+    D1.DirectiveId = TEXT("Intro");
+    D1.Text = TEXT("The Citadel remembers those who fall. Rise again, Signalbound.");
+    D1.ContextTag = TEXT("Hub");
+    ScriptedDirectives.Add(D1);
+
+    FSBSystemDirective D2;
+    D2.DirectiveId = TEXT("ContractHint");
+    D2.Text = TEXT("Contracts forge resolve. Accept the challenge, reap the signal.");
+    D2.ContextTag = TEXT("Hub");
+    ScriptedDirectives.Add(D2);
+
+    FSBSystemDirective D3;
+    D3.DirectiveId = TEXT("DungeonEntry");
+    D3.Text = TEXT("The Ironcatacomb awaits. Steel yourself before the descent.");
+    D3.ContextTag = TEXT("Floor01");
+    ScriptedDirectives.Add(D3);
+
+    FSBSystemDirective D4;
+    D4.DirectiveId = TEXT("ObjectiveHint");
+    D4.Text = TEXT("Three sigils seal the gate. Gather them from the depths.");
+    D4.ContextTag = TEXT("Floor01");
+    ScriptedDirectives.Add(D4);
+
+    FSBSystemDirective D5;
+    D5.DirectiveId = TEXT("SystemWarning");
+    D5.Text = TEXT("The System watches. Every action carries weight.");
+    D5.ContextTag = TEXT("General");
+    ScriptedDirectives.Add(D5);
 }
 
 FSBSystemDirective ASBSystemManager::RequestDirective(const FString& ContextTag)

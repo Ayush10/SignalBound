@@ -25,6 +25,10 @@ void USBWidget_PlayerHUD::NativeConstruct()
 	{
 		ContractText->SetText(FText::GetEmpty());
 	}
+	if (DirectiveText)
+	{
+		DirectiveText->SetText(FText::GetEmpty());
+	}
 }
 
 void USBWidget_PlayerHUD::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -74,5 +78,13 @@ void USBWidget_PlayerHUD::UpdateContractText(const FString& InText)
 	if (ContractText)
 	{
 		ContractText->SetText(FText::FromString(InText));
+	}
+}
+
+void USBWidget_PlayerHUD::UpdateDirectiveText(const FString& InText)
+{
+	if (DirectiveText)
+	{
+		DirectiveText->SetText(FText::FromString(InText));
 	}
 }
