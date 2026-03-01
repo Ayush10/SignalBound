@@ -11,11 +11,18 @@
 ASBEnemyBase::ASBEnemyBase()
 {
     PrimaryActorTick.bCanEverTick = true;
+    AIControllerClass = AAIController::StaticClass();
+    AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 }
 
 void ASBEnemyBase::BeginPlay()
 {
     Super::BeginPlay();
+
+    if (!GetController())
+    {
+        SpawnDefaultController();
+    }
 
     MaxHealth = FMath::Max(1.0f, MaxHealth);
     CurrentHealth = FMath::Clamp(CurrentHealth, 0.0f, MaxHealth);
