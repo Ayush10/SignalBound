@@ -27,6 +27,8 @@ unreal = server.get_unreal_connection()
 
 spawned: List[str] = []
 failed: List[Tuple[str, str]] = []
+skipped_existing = 0
+overwrite_existing = False
 
 
 def send(command: str, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -55,7 +57,9 @@ def spawn_mesh(
     rotation: List[float] | None = None,
     mesh: str = CUBE,
 ) -> None:
-    delete_if_exists(name)
+    global skipped_existing
+    if overwrite_existing:
+        delete_if_exists(name)
     params: Dict[str, Any] = {
         "type": "StaticMeshActor",
         "name": name,
@@ -69,7 +73,11 @@ def spawn_mesh(
     if is_ok(resp):
         spawned.append(name)
     else:
-        failed.append((name, resp.get("error", str(resp))))
+        err = resp.get("error", str(resp))
+        if (not overwrite_existing) and ("already exists" in str(err).lower()):
+            skipped_existing += 1
+            return
+        failed.append((name, err))
 
 
 def spawn_light(
@@ -79,7 +87,9 @@ def spawn_light(
     rotation: List[float] | None = None,
     scale: List[float] | None = None,
 ) -> None:
-    delete_if_exists(name)
+    global skipped_existing
+    if overwrite_existing:
+        delete_if_exists(name)
     params: Dict[str, Any] = {
         "type": actor_type,
         "name": name,
@@ -93,7 +103,11 @@ def spawn_light(
     if is_ok(resp):
         spawned.append(name)
     else:
-        failed.append((name, resp.get("error", str(resp))))
+        err = resp.get("error", str(resp))
+        if (not overwrite_existing) and ("already exists" in str(err).lower()):
+            skipped_existing += 1
+            return
+        failed.append((name, err))
 
 
 def clear_level_geometry() -> None:
@@ -352,6 +366,7 @@ def build_systemtest_room() -> None:
 
 
 def main() -> int:
+    global overwrite_existing
     parser = argparse.ArgumentParser(description="Build SignalBound hub in current level.")
     parser.add_argument(
         "--phase",
@@ -368,7 +383,18 @@ def main() -> int:
         ],
         default="all",
     )
+    parser.add_argument(
+        "--allow-clear",
+        action="store_true",
+        help="Required to run destructive clear operations.",
+    )
+    parser.add_argument(
+        "--overwrite-existing",
+        action="store_true",
+        help="Replace actors with matching names instead of preserving them.",
+    )
     args = parser.parse_args()
+    overwrite_existing = args.overwrite_existing
 
     ping = send("ping", {})
     if not is_ok(ping):
@@ -376,7 +402,10 @@ def main() -> int:
         return 2
 
     phase = args.phase
-    if phase in ("all", "clear"):
+    if phase == "clear" and not args.allow_clear:
+        print("ERROR: --phase clear requires --allow-clear to avoid accidental data loss.")
+        return 3
+    if (phase == "clear") or (phase == "all" and args.allow_clear):
         clear_level_geometry()
         print("PHASE_DONE=clear_level_geometry", flush=True)
     if phase in ("all", "grand_hall"):
@@ -402,6 +431,7 @@ def main() -> int:
         print("PHASE_DONE=build_systemtest_room", flush=True)
 
     print(f"SPAWNED_COUNT={len(spawned)}")
+    print(f"SKIPPED_EXISTING_COUNT={skipped_existing}")
     if failed:
         print(f"FAILED_COUNT={len(failed)}")
         for name, err in failed[:25]:

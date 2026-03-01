@@ -55,6 +55,7 @@
 #include "Commands/EpicUnrealMCPBlueprintCommands.h"
 #include "Commands/EpicUnrealMCPBlueprintGraphCommands.h"
 #include "Commands/EpicUnrealMCPCommonUtils.h"
+#include "Commands/EpicUnrealMCPWidgetCommands.h"
 
 // Default settings
 #define MCP_SERVER_HOST "127.0.0.1"
@@ -65,6 +66,7 @@ UEpicUnrealMCPBridge::UEpicUnrealMCPBridge()
     EditorCommands = MakeShared<FEpicUnrealMCPEditorCommands>();
     BlueprintCommands = MakeShared<FEpicUnrealMCPBlueprintCommands>();
     BlueprintGraphCommands = MakeShared<FEpicUnrealMCPBlueprintGraphCommands>();
+    WidgetCommands = MakeShared<FEpicUnrealMCPWidgetCommands>();
 }
 
 UEpicUnrealMCPBridge::~UEpicUnrealMCPBridge()
@@ -72,6 +74,7 @@ UEpicUnrealMCPBridge::~UEpicUnrealMCPBridge()
     EditorCommands.Reset();
     BlueprintCommands.Reset();
     BlueprintGraphCommands.Reset();
+    WidgetCommands.Reset();
 }
 
 // Initialize subsystem
@@ -269,6 +272,14 @@ FString UEpicUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const T
                      CommandType == TEXT("rename_function"))
             {
                 ResultJson = BlueprintGraphCommands->HandleCommand(CommandType, Params);
+            }
+            // Widget Commands
+            else if (CommandType == TEXT("create_widget_blueprint") ||
+                     CommandType == TEXT("add_widget_to_canvas") ||
+                     CommandType == TEXT("set_widget_slot") ||
+                     CommandType == TEXT("set_widget_appearance"))
+            {
+                ResultJson = WidgetCommands->HandleCommand(CommandType, Params);
             }
             else
             {

@@ -37,3 +37,9 @@ Fix:
 2. Use new commands to set SpawnGroup tags and add plaque text surfaces automatically.
 3. Use `save_current_level_as` / `new_blank_level` to eliminate remaining manual map-save steps.
 
+## Additive Build Continuation (Latest)
+- New additive-only world-build hardening is in place (no deletions by default).
+- Latest Windows continuation file:
+  - `docs/WINDOWS_HANDOFF_HUB_ADDITIVE_2026-03-01.md`
+- Cross-agent cadence/policy file:
+  - `docs/CROSS_AGENT_SYNC_POLICY.md`

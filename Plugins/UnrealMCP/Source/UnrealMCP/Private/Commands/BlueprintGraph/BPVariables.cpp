@@ -124,6 +124,52 @@ TSharedPtr<FJsonObject> FBPVariables::SetVariableProperties(const TSharedPtr<FJs
 
     if (!VarDesc)
     {
+        // Variable not in NewVariables — try inherited variable via CDO
+        if (Params->HasField(TEXT("default_value")) && Blueprint->GeneratedClass)
+        {
+            UObject* CDO = Blueprint->GeneratedClass->GetDefaultObject(true);
+            if (CDO)
+            {
+                FProperty* Prop = Blueprint->GeneratedClass->FindPropertyByName(FName(*VariableName));
+                if (Prop)
+                {
+                    // Convert JSON value to string
+                    FString StringValue;
+                    TSharedPtr<FJsonValue> JsonVal = Params->Values.FindRef("default_value");
+                    if (JsonVal.IsValid())
+                    {
+                        if (JsonVal->Type == EJson::String) StringValue = JsonVal->AsString();
+                        else if (JsonVal->Type == EJson::Number) StringValue = FString::Printf(TEXT("%g"), JsonVal->AsNumber());
+                        else if (JsonVal->Type == EJson::Boolean) StringValue = JsonVal->AsBool() ? TEXT("true") : TEXT("false");
+                    }
+
+                    // Use ImportText to set the property value on the CDO
+                    void* PropAddr = Prop->ContainerPtrToValuePtr<void>(CDO);
+                    if (Prop->ImportText_Direct(*StringValue, PropAddr, CDO, PPF_None))
+                    {
+                        CDO->MarkPackageDirty();
+                        Blueprint->MarkPackageDirty();
+                        FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+                        FKismetEditorUtilities::CompileBlueprint(Blueprint);
+
+                        Result->SetBoolField("success", true);
+                        Result->SetStringField("variable_name", VariableName);
+                        Result->SetStringField("message", "Inherited variable default updated via CDO");
+                        TSharedPtr<FJsonObject> Updated = MakeShared<FJsonObject>();
+                        Updated->SetStringField("default_value", StringValue);
+                        Result->SetObjectField("properties_updated", Updated);
+                        return Result;
+                    }
+                    else
+                    {
+                        Result->SetBoolField("success", false);
+                        Result->SetStringField("error", FString::Printf(TEXT("Failed to set CDO value for inherited variable: %s"), *VariableName));
+                        return Result;
+                    }
+                }
+            }
+        }
+
         Result->SetBoolField("success", false);
         Result->SetStringField("error", FString::Printf(TEXT("Variable not found: %s"), *VariableName));
         return Result;

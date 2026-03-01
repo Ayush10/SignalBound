@@ -44,6 +44,22 @@ When shipping any major code/content/system change:
 2. Create or update a dated handoff note (for example `docs/SESSION_HANDOFF_YYYY-MM-DD.md`)
 3. Include exact restart steps if editor/plugin/server reload is required
 
+## Claude-Codex Sync Policy (Mandatory)
+To stay in sync with parallel work and avoid surprises:
+1. Every 5 minutes (or before any major run), check:
+   - `git status --short`
+   - `git log --oneline -n 5`
+   - latest handoff note in `docs/`
+2. Before any potentially destructive run, require explicit opt-in flags (`--allow-clear`, `--overwrite-existing`) and user confirmation.
+3. Prefer additive map updates; do not delete/replace existing actors unless required to fix logic breakage.
+4. After each major phase, write/update a handoff doc with:
+   - completed work
+   - failures/blockers
+   - exact next commands
+5. If MCP connectivity changes unexpectedly, verify:
+   - `python3 mcp_cmd.py ping '{}'`
+   - map anchors in current level (`SM_GMH_`, `BP_PlayerStart_Map_HubCitadelCity`).
+
 ## Cross-Platform Continuity
 All docs/ files are git-tracked. When pushing to GitHub and cloning on Windows:
 - The `docs/` folder has all specs and research needed to continue

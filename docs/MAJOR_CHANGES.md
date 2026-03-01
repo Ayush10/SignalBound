@@ -45,3 +45,43 @@ Extended `unreal_mcp_server_advanced.py` tool wrappers for the new commands:
 - Added Unreal `.gitignore` to prevent committing transient build/cache files.
 - Added root `README.md`.
 
+### Hub Map Recovery + Rebuild
+- Diagnosed map mismatch where only a floating-island/template scene was visible.
+- Confirmed hub prefixes were absent in the active map, then cleaned template actors.
+- Rebuilt hub districts and markers in the active level using phased script runs.
+- Re-verified required marker presence and district actor counts.
+- Added full map continuity record:
+  - `docs/MAP_HUB_PROGRESS_2026-03-01.md`
+
+### Hub Vibrant Visual Pass
+- Added `tools/beautify_hub_vibrant.py` for colorful city dressing.
+- Applied vibrant material accents across hub hero pieces.
+- Added flower-rich beautification set:
+  - ribbon accents
+  - planters + soil beds
+  - rose/flower stems, blooms, buds
+  - garden glow point lights
+
+### Additive-Safe Build Hardening
+- Updated hub build scripts to preserve existing actors by default:
+  - `tools/build_hub_citadel_city_v2.py`
+  - `tools/build_signalbound_hub.py`
+  - `tools/beautify_hub_vibrant.py`
+- Added explicit opt-in safety flags:
+  - `--allow-clear` for destructive cleanup
+  - `--overwrite-existing` for intentional replacement
+- Default behavior now skips existing actor names instead of deleting them.
+
+### Metropolis Expansion (Partial, Additive)
+- Successfully added phases:
+  - `core`
+  - `contract_vista`
+  - `signal_quarter`
+- Remaining phases intentionally left for continuation:
+  - `skyline`
+  - `vehicles`
+  - `arenas_outskirts`
+  - `undercroft`
+  - `markers_plaques`
+- Handoff doc created for Windows continuation:
+  - `docs/WINDOWS_HANDOFF_HUB_ADDITIVE_2026-03-01.md`

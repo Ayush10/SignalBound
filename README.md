@@ -48,5 +48,5 @@ Unreal Engine 5.7 project for the SignalBound world build and MCP-driven editor 
 ## Continuity
 - Current handoff: `docs/SESSION_HANDOFF_2026-03-01.md`
 - Major changes log: `docs/MAJOR_CHANGES.md`
+- Hub map progress doc: `docs/MAP_HUB_PROGRESS_2026-03-01.md`
 - Project execution conventions: `CLAUDE.md`
-
