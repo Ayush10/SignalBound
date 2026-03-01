@@ -39,6 +39,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Managers")
     bool bSpawnManagersIfMissing = true;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
+    bool bIsDemoMode = false;
+
+    UFUNCTION(BlueprintCallable, Category = "Demo")
+    void ToggleDemoMode(bool bEnabled);
+
 private:
     template <typename TActorType>
     TActorType* FindExistingActor() const;

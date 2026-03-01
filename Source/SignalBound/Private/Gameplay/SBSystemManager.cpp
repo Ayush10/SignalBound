@@ -57,8 +57,11 @@ FSBSystemDirective ASBSystemManager::RequestDirective(const FString& ContextTag)
         }
         break;
     case ESBSystemProviderMode::LiveStub:
-        // In LiveStub mode, we expect an external tool to call SetDirective
-        // If not set recently, return fallback
+        // Signal the external AI service that we need a fresh directive
+        bRequestPending = true;
+        PendingContextTag = ContextTag;
+        
+        // Return a temporary stub while the service works
         Directive = BuildLiveStubDirective(ContextTag);
         break;
     default:

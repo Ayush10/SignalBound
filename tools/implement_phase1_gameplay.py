@@ -38,6 +38,18 @@ failed: List[Tuple[str, str]] = []
 
 def send(command: str, params: Dict[str, Any]) -> Dict[str, Any]:
     time.sleep(MCP_THROTTLE)
+    
+    # Handle blueprint name/path normalization
+    if params and "blueprint_name" in params:
+        name = params["blueprint_name"]
+        if not name.startswith("/"):
+            params["blueprint_path"] = f"/Game/Blueprints/{name}"
+        else:
+            params["blueprint_path"] = name
+            # If it's already a path, extract the name for commands that need it
+            if "/" in name:
+                params["blueprint_name"] = name.split("/")[-1]
+            
     resp = unreal.send_command(command, params)
     return resp or {"status": "error", "error": "No response"}
 

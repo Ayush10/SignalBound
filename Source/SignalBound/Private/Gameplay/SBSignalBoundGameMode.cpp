@@ -50,6 +50,22 @@ void ASBSignalBoundGameMode::BeginPlay()
     }
 }
 
+void ASBSignalBoundGameMode::ToggleDemoMode(bool bEnabled)
+{
+    bIsDemoMode = bEnabled;
+
+    if (bIsDemoMode)
+    {
+        UE_LOG(LogTemp, Log, TEXT("DEMO MODE ENABLED - Initializing world reset and tour..."));
+
+        if (SystemManager)
+        {
+            // Signal system to show intro directive
+            SystemManager->RequestDirective(TEXT("Intro"));
+        }
+    }
+}
+
 template <typename TActorType>
 TActorType* ASBSignalBoundGameMode::FindExistingActor() const
 {

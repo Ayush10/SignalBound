@@ -30,6 +30,12 @@ public:
     UFUNCTION(BlueprintPure, Category = "System")
     FSBSystemDirective GetScriptedDirective(const FString& ContextTag) const;
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "System")
+    bool bRequestPending = false;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "System")
+    FString PendingContextTag;
+
     UFUNCTION(BlueprintCallable, Category = "System")
     void ShowDirective(const FSBSystemDirective& Directive);
 
