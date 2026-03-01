@@ -1,0 +1,32 @@
+# Unreal Engine
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+.vs/
+.vscode/
+*.VC.db
+*.VC.opendb
+
+# User / local config
+*.suo
+*.user
+*.userprefs
+*.sln
+*.xcodeproj
+*.xcworkspace
+*.xcuserstate
+*.xcuserdata/
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# Local MCP client config
+.claude/
+
