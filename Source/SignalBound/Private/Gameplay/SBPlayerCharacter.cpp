@@ -6,6 +6,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerInput.h"
+#include "GameFramework/SpringArmComponent.h"
+#include "Camera/CameraComponent.h"
 #include "Gameplay/SBContractManager.h"
 #include "Gameplay/SBEnemyBase.h"
 #include "TimerManager.h"
@@ -15,6 +17,28 @@
 ASBPlayerCharacter::ASBPlayerCharacter()
 {
     PrimaryActorTick.bCanEverTick = true;
+
+    // Camera setup
+    CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
+    CameraBoom->SetupAttachment(RootComponent);
+    CameraBoom->TargetArmLength = 400.0f; 
+    CameraBoom->SocketOffset = FVector(0.0f, 0.0f, 60.0f);
+    CameraBoom->bUsePawnControlRotation = true;
+
+    FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
+    FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+    FollowCamera->bUsePawnControlRotation = false;
+
+    // Standard character rotation
+    bUseControllerRotationPitch = false;
+    bUseControllerRotationYaw = false;
+    bUseControllerRotationRoll = false;
+
+    if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+    {
+        MoveComp->bOrientRotationToMovement = true; 
+        MoveComp->RotationRate = FRotator(0.0f, 540.0f, 0.0f);
+    }
 }
 
 void ASBPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -32,7 +56,7 @@ void ASBPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
     PlayerInputComponent->BindAxis("Turn", this, &ASBPlayerCharacter::TurnAtRate);
     PlayerInputComponent->BindAxis("LookUp", this, &ASBPlayerCharacter::LookUpAtRate);
 
-    // Input action fallbacks for keyboard if no project mappings are present.
+    // WASD Movement
     PlayerInputComponent->BindKey(EKeys::W, IE_Pressed, this, &ASBPlayerCharacter::MoveForwardPressed);
     PlayerInputComponent->BindKey(EKeys::W, IE_Released, this, &ASBPlayerCharacter::MoveForwardReleased);
     PlayerInputComponent->BindKey(EKeys::S, IE_Pressed, this, &ASBPlayerCharacter::MoveBackwardPressed);
@@ -41,6 +65,16 @@ void ASBPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
     PlayerInputComponent->BindKey(EKeys::D, IE_Released, this, &ASBPlayerCharacter::MoveRightReleased);
     PlayerInputComponent->BindKey(EKeys::A, IE_Pressed, this, &ASBPlayerCharacter::MoveLeftPressed);
     PlayerInputComponent->BindKey(EKeys::A, IE_Released, this, &ASBPlayerCharacter::MoveLeftReleased);
+
+    // Arrow Key Movement
+    PlayerInputComponent->BindKey(EKeys::Up, IE_Pressed, this, &ASBPlayerCharacter::MoveForwardPressed);
+    PlayerInputComponent->BindKey(EKeys::Up, IE_Released, this, &ASBPlayerCharacter::MoveForwardReleased);
+    PlayerInputComponent->BindKey(EKeys::Down, IE_Pressed, this, &ASBPlayerCharacter::MoveBackwardPressed);
+    PlayerInputComponent->BindKey(EKeys::Down, IE_Released, this, &ASBPlayerCharacter::MoveBackwardReleased);
+    PlayerInputComponent->BindKey(EKeys::Right, IE_Pressed, this, &ASBPlayerCharacter::MoveRightPressed);
+    PlayerInputComponent->BindKey(EKeys::Right, IE_Released, this, &ASBPlayerCharacter::MoveRightReleased);
+    PlayerInputComponent->BindKey(EKeys::Left, IE_Pressed, this, &ASBPlayerCharacter::MoveLeftPressed);
+    PlayerInputComponent->BindKey(EKeys::Left, IE_Released, this, &ASBPlayerCharacter::MoveLeftReleased);
 
     PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ASBPlayerCharacter::Jump);
     PlayerInputComponent->BindAction("Jump", IE_Released, this, &ASBPlayerCharacter::StopJumping);
@@ -56,6 +90,13 @@ void ASBPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 void ASBPlayerCharacter::BeginPlay()
 {
     Super::BeginPlay();
+
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        FInputModeGameOnly InputMode;
+        PC->SetInputMode(InputMode);
+        PC->bShowMouseCursor = false;
+    }
 
     MaxHealth = FMath::Max(1.0f, MaxHealth);
     MaxStamina = FMath::Max(1.0f, MaxStamina);
@@ -148,14 +189,7 @@ void ASBPlayerCharacter::MoveForwardPressed()
 
 void ASBPlayerCharacter::MoveForwardReleased()
 {
-    if (bIsDead)
-    {
-        return;
-    }
-    if (MoveForwardAxis > 0.0f)
-    {
-        MoveForwardAxis = 0.0f;
-    }
+    if (!bIsDead && MoveForwardAxis > 0.0f) MoveForwardAxis = 0.0f;
 }
 
 void ASBPlayerCharacter::MoveBackwardPressed()
@@ -169,14 +203,7 @@ void ASBPlayerCharacter::MoveBackwardPressed()
 
 void ASBPlayerCharacter::MoveBackwardReleased()
 {
-    if (bIsDead)
-    {
-        return;
-    }
-    if (MoveForwardAxis < 0.0f)
-    {
-        MoveForwardAxis = 0.0f;
-    }
+    if (!bIsDead && MoveForwardAxis < 0.0f) MoveForwardAxis = 0.0f;
 }
 
 void ASBPlayerCharacter::MoveRightPressed()
@@ -190,14 +217,7 @@ void ASBPlayerCharacter::MoveRightPressed()
 
 void ASBPlayerCharacter::MoveRightReleased()
 {
-    if (bIsDead)
-    {
-        return;
-    }
-    if (MoveRightAxis > 0.0f)
-    {
-        MoveRightAxis = 0.0f;
-    }
+    if (!bIsDead && MoveRightAxis > 0.0f) MoveRightAxis = 0.0f;
 }
 
 void ASBPlayerCharacter::MoveLeftPressed()
@@ -211,14 +231,7 @@ void ASBPlayerCharacter::MoveLeftPressed()
 
 void ASBPlayerCharacter::MoveLeftReleased()
 {
-    if (bIsDead)
-    {
-        return;
-    }
-    if (MoveRightAxis < 0.0f)
-    {
-        MoveRightAxis = 0.0f;
-    }
+    if (!bIsDead && MoveRightAxis < 0.0f) MoveRightAxis = 0.0f;
 }
 
 void ASBPlayerCharacter::HandleLightAttackInput()
@@ -454,7 +467,7 @@ bool ASBPlayerCharacter::TryHeavyAttack()
     }
 
     constexpr float HeavyAttackStaminaCost = 25.0f;
-    if (!ConsumeStamina(25.0f))
+    if (!ConsumeStamina(HeavyAttackStaminaCost))
     {
         return false;
     }

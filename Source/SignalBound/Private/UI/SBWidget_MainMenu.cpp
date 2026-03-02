@@ -1,8 +1,9 @@
 #include "UI/SBWidget_MainMenu.h"
 
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "GameFramework/PlayerController.h"
-#include "GameFramework/GameUserSettings.h"
+#include "AudioDevice.h"
 
 void USBWidget_MainMenu::NativeConstruct()
 {
@@ -113,23 +114,14 @@ void USBWidget_MainMenu::HandleToggleSound()
 {
 	bSoundEnabled = !bSoundEnabled;
 
-	if (UWorld* World = GetWorld())
+	const float TargetVolume = bSoundEnabled ? CurrentVolume : 0.0f;
+	if (GEngine)
 	{
-		USoundMix* MasterMix = nullptr;
-		if (bSoundEnabled)
+		FAudioDeviceHandle AudioDevice = GEngine->GetActiveAudioDevice();
+		if (AudioDevice.IsValid())
 		{
-			UGameplayStatics::SetSoundMixClassOverride(World, MasterMix, nullptr, CurrentVolume, 1.0f, 0.2f, true);
+			AudioDevice.GetAudioDevice()->SetTransientPrimaryVolume(TargetVolume);
 		}
-		else
-		{
-			UGameplayStatics::SetSoundMixClassOverride(World, MasterMix, nullptr, 0.0f, 1.0f, 0.2f, true);
-		}
-	}
-
-	// Simpler fallback: set the global volume directly
-	if (FAudioDeviceHandle AudioDevice = GEngine ? GEngine->GetActiveAudioDevice() : FAudioDeviceHandle())
-	{
-		AudioDevice->SetTransientPrimaryVolume(bSoundEnabled ? CurrentVolume : 0.0f);
 	}
 
 	if (Text_SoundStatus)
@@ -148,11 +140,12 @@ void USBWidget_MainMenu::HandleVolumeChanged(float Value)
 {
 	CurrentVolume = FMath::Clamp(Value, 0.0f, 1.0f);
 
-	if (bSoundEnabled)
+	if (bSoundEnabled && GEngine)
 	{
-		if (FAudioDeviceHandle AudioDevice = GEngine ? GEngine->GetActiveAudioDevice() : FAudioDeviceHandle())
+		FAudioDeviceHandle AudioDevice = GEngine->GetActiveAudioDevice();
+		if (AudioDevice.IsValid())
 		{
-			AudioDevice->SetTransientPrimaryVolume(CurrentVolume);
+			AudioDevice.GetAudioDevice()->SetTransientPrimaryVolume(CurrentVolume);
 		}
 	}
 
