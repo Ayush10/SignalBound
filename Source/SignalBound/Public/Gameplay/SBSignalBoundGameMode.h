@@ -45,7 +45,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Demo")
     void ToggleDemoMode(bool bEnabled);
 
+    UFUNCTION()
+    void DelayedIntro();
+
 private:
+    FTimerHandle IntroTimerHandle;
+
     template <typename TActorType>
     TActorType* FindExistingActor() const;
 

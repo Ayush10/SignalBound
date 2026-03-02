@@ -42,6 +42,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "System")
     void ClearDirective();
 
+    UFUNCTION(BlueprintImplementableEvent, Category = "System")
+    void PlayDirectiveAudio(const FString& FilePath);
+
     UFUNCTION(BlueprintPure, Category = "System")
     FSBSystemDirective GetCurrentDirective() const { return CurrentDirective; }
 

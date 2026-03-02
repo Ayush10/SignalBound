@@ -48,6 +48,9 @@ struct FSBSystemDirective
     FString Text;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Directive")
+    FString AudioFilePath;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Directive")
     FString ContextTag;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Directive")

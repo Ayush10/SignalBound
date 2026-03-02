@@ -9,6 +9,8 @@ class UParticleSystem;
 class USoundBase;
 class ASBContractManager;
 class ASBEnemyBase;
+class USpringArmComponent;
+class UCameraComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSBStatChangedSignature, float, NewNormalizedValue);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSBPlayerSimpleSignature);
@@ -20,6 +22,12 @@ class SIGNALBOUND_API ASBPlayerCharacter : public ACharacter
 
 public:
     ASBPlayerCharacter();
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
+    USpringArmComponent* CameraBoom;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
+    UCameraComponent* FollowCamera;
 
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;

@@ -10,6 +10,7 @@
 ASBSignalBoundGameMode::ASBSignalBoundGameMode()
 {
     PrimaryActorTick.bCanEverTick = false;
+    DefaultPawnClass = ASBPlayerCharacter::StaticClass();
 }
 
 void ASBSignalBoundGameMode::BeginPlay()
@@ -47,6 +48,19 @@ void ASBSignalBoundGameMode::BeginPlay()
         }
         HUDManager->BindToSystemManager(SystemManager);
         HUDManager->BindToContractManager(ContractManager);
+    }
+
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().SetTimer(IntroTimerHandle, this, &ASBSignalBoundGameMode::DelayedIntro, 2.0f, false);
+    }
+}
+
+void ASBSignalBoundGameMode::DelayedIntro()
+{
+    if (SystemManager)
+    {
+        SystemManager->RequestDirective(TEXT("Hub"));
     }
 }
 
