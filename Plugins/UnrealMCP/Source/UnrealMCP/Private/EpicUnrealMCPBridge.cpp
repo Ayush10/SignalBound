@@ -234,7 +234,9 @@ FString UEpicUnrealMCPBridge::ExecuteCommand(const FString& CommandType, const T
                      CommandType == TEXT("save_current_level_as") ||
                      CommandType == TEXT("load_level") ||
                      CommandType == TEXT("new_blank_level") ||
-                     CommandType == TEXT("spawn_blueprint_actor"))
+                     CommandType == TEXT("spawn_blueprint_actor") ||
+                     CommandType == TEXT("set_world_settings") ||
+                     CommandType == TEXT("get_world_settings"))
             {
                 ResultJson = EditorCommands->HandleCommand(CommandType, Params);
             }

@@ -32,6 +32,8 @@
 #include "EditorAssetLibrary.h"
 #include "Commands/EpicUnrealMCPBlueprintCommands.h"
 #include "UObject/UnrealType.h"
+#include "GameFramework/WorldSettings.h"
+#include "GameFramework/GameModeBase.h"
 
 namespace
 {
@@ -153,7 +155,16 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPEditorCommands::HandleCommand(const FStrin
     {
         return HandleSpawnBlueprintActor(Params);
     }
-    
+    // World settings
+    else if (CommandType == TEXT("set_world_settings"))
+    {
+        return HandleSetWorldSettings(Params);
+    }
+    else if (CommandType == TEXT("get_world_settings"))
+    {
+        return HandleGetWorldSettings(Params);
+    }
+
     return FEpicUnrealMCPCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Unknown editor command: %s"), *CommandType));
 }
 
@@ -864,4 +875,126 @@ TSharedPtr<FJsonObject> FEpicUnrealMCPEditorCommands::HandleSpawnBlueprintActor(
     // This function will now correctly call the implementation in BlueprintCommands
     FEpicUnrealMCPBlueprintCommands BlueprintCommands;
     return BlueprintCommands.HandleCommand(TEXT("spawn_blueprint_actor"), Params);
+}
+
+TSharedPtr<FJsonObject> FEpicUnrealMCPEditorCommands::HandleSetWorldSettings(const TSharedPtr<FJsonObject>& Params)
+{
+    UWorld* World = GWorld;
+    if (!World)
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("No valid world"));
+    }
+
+    AWorldSettings* WS = World->GetWorldSettings();
+    if (!WS)
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("No WorldSettings actor"));
+    }
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShareable(new FJsonObject);
+    TArray<FString> Applied;
+
+    // GameMode override: pass class path like "/Script/SignalBound.SBSignalBoundGameMode" or "None" to clear
+    FString GameModeOverride;
+    if (Params->TryGetStringField(TEXT("game_mode_override"), GameModeOverride))
+    {
+        WS->Modify();
+        if (GameModeOverride == TEXT("None") || GameModeOverride == TEXT("none") || GameModeOverride.IsEmpty())
+        {
+            WS->DefaultGameMode = nullptr;
+            Applied.Add(TEXT("game_mode_override=None"));
+        }
+        else
+        {
+            UClass* GMClass = LoadClass<AGameModeBase>(nullptr, *GameModeOverride);
+            if (!GMClass)
+            {
+                // Try as a Blueprint path
+                FString BlueprintPath = GameModeOverride;
+                if (!BlueprintPath.EndsWith(TEXT("_C")))
+                {
+                    BlueprintPath += TEXT("_C");
+                }
+                GMClass = LoadClass<AGameModeBase>(nullptr, *BlueprintPath);
+            }
+            if (GMClass)
+            {
+                WS->DefaultGameMode = GMClass;
+                Applied.Add(FString::Printf(TEXT("game_mode_override=%s"), *GMClass->GetPathName()));
+            }
+            else
+            {
+                return FEpicUnrealMCPCommonUtils::CreateErrorResponse(
+                    FString::Printf(TEXT("Could not load GameMode class: %s"), *GameModeOverride));
+            }
+        }
+    }
+
+    // Gravity
+    double GravityZ;
+    if (Params->TryGetNumberField(TEXT("gravity_z"), GravityZ))
+    {
+        WS->bGlobalGravitySet = true;
+        WS->GlobalGravityZ = static_cast<float>(GravityZ);
+        Applied.Add(FString::Printf(TEXT("gravity_z=%.1f"), GravityZ));
+    }
+
+    // Kill Z
+    double KillZ;
+    if (Params->TryGetNumberField(TEXT("kill_z"), KillZ))
+    {
+        WS->KillZ = static_cast<float>(KillZ);
+        Applied.Add(FString::Printf(TEXT("kill_z=%.1f"), KillZ));
+    }
+
+    WS->MarkPackageDirty();
+
+    TArray<TSharedPtr<FJsonValue>> AppliedArray;
+    for (const FString& S : Applied)
+    {
+        AppliedArray.Add(MakeShareable(new FJsonValueString(S)));
+    }
+    ResultObj->SetArrayField(TEXT("applied"), AppliedArray);
+    ResultObj->SetStringField(TEXT("message"), FString::Printf(TEXT("WorldSettings updated (%d properties)"), Applied.Num()));
+
+    return ResultObj;
+}
+
+TSharedPtr<FJsonObject> FEpicUnrealMCPEditorCommands::HandleGetWorldSettings(const TSharedPtr<FJsonObject>& Params)
+{
+    UWorld* World = GWorld;
+    if (!World)
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("No valid world"));
+    }
+
+    AWorldSettings* WS = World->GetWorldSettings();
+    if (!WS)
+    {
+        return FEpicUnrealMCPCommonUtils::CreateErrorResponse(TEXT("No WorldSettings actor"));
+    }
+
+    TSharedPtr<FJsonObject> ResultObj = MakeShareable(new FJsonObject);
+
+    // GameMode override
+    if (WS->DefaultGameMode)
+    {
+        ResultObj->SetStringField(TEXT("game_mode_override"), WS->DefaultGameMode->GetPathName());
+    }
+    else
+    {
+        ResultObj->SetStringField(TEXT("game_mode_override"), TEXT("None"));
+    }
+
+    // Gravity
+    ResultObj->SetNumberField(TEXT("gravity_z"), WS->GlobalGravityZ);
+    ResultObj->SetBoolField(TEXT("gravity_set"), WS->bGlobalGravitySet);
+
+    // Kill Z
+    ResultObj->SetNumberField(TEXT("kill_z"), WS->KillZ);
+
+    // Map name
+    ResultObj->SetStringField(TEXT("map_name"), World->GetMapName());
+
+    return ResultObj;
 }

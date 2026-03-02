@@ -33,4 +33,8 @@ private:
 
     // Blueprint actor spawning
     TSharedPtr<FJsonObject> HandleSpawnBlueprintActor(const TSharedPtr<FJsonObject>& Params);
+
+    // World settings
+    TSharedPtr<FJsonObject> HandleSetWorldSettings(const TSharedPtr<FJsonObject>& Params);
+    TSharedPtr<FJsonObject> HandleGetWorldSettings(const TSharedPtr<FJsonObject>& Params);
 };
